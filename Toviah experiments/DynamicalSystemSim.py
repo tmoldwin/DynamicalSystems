@@ -62,26 +62,41 @@ def r_diffusion(A, t):
     L = A - D
     return expm(L * t)
 
+def linear_activation(x):
+    return x
 
-def dynamical_simulator(T, x0, A, func, dt='step', **kwargs):
+def sigmoid_activation(x):
+    return 1 / (1 + np.exp(-x))
+
+def tanh_activation(x):
+    return np.tanh(x)
+
+def threshold_activation(x, threshold=0):
+    return (x > threshold).astype(int)
+
+
+def dynamical_simulator(T, x0, A, func, dt='step', activation = linear_activation, **kwargs):
     N = len(x0)
     if dt != 'step':
         # Continuous dynamics approximation case (not used here but kept for completeness)
         times = np.arange(0, T-1 + dt, dt)
         num_steps = len(times)
-        X = np.zeros((N, num_steps))
-        X[:, 0] = x0
+        V = np.zeros((N, num_steps))
+        spikes = np.zeros_like(V)
+        V[:, 0] = x0
         for i in range(1, num_steps):
-            X[:, i] = X[:, i - 1] + dt * func(X[:, i - 1], A, **kwargs)
+            V[:, i] = V[:, i - 1] + dt * func(V[:, i - 1], A, **kwargs)
     else:
         # Discrete dynamics case
         times = np.arange(T)  # Corrected to use arange for integer steps
-        X = np.zeros((N, T))
-        X[:, 0] = x0
+        V = np.zeros((N, T))
+        spikes = np.zeros_like(V)
+        V[:, 0] = x0
+        spikes[:, 0] = activation(V[:, 0])
         for i in range(1, T):
-            X[:, i] = func(X[:, i - 1], A, **kwargs)
-
-    return times, X
+            V[:, i] = func(spikes[:, i - 1], A, **kwargs)
+            spikes[:, i] = activation(V[:, i])
+    return times, V, spikes
 
 
 
