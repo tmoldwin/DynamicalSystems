@@ -87,7 +87,7 @@ def tanh_activation(x):
     return np.tanh(x)
 
 
-def threshold_activation(x, threshold=0):
+def threshold_activation(x, threshold=0.5):
     return (x > threshold).astype(int)
 
 
@@ -116,7 +116,7 @@ def dynamical_simulator_old(T, x0, A, func, dt='step', activation=linear_activat
     return times, V, spikes
 
 
-def dynamical_simulator(T, x0, A, dt=0.1, leak=1, activation=linear_activation, cell_bounds=None):
+def dynamical_simulator(T, x0, A, dt=0.1, tau_leak=1, activation=linear_activation, cell_bounds=None):
     N = len(x0)
     times = np.arange(0, T - 1 + dt, dt)
     num_steps = len(times)
@@ -128,7 +128,7 @@ def dynamical_simulator(T, x0, A, dt=0.1, leak=1, activation=linear_activation, 
     for i in range(1, num_steps):
         for cell_type, bound in cell_bounds.items():
             input_by_type[cell_type][:, i] = np.dot(A[:, bound[0]:bound[1]], spikes[bound[0]:bound[1], i-1])
-        V[:, i] = V[:, i - 1] + (dt * (np.dot(A, spikes[:, i - 1]) - leak * V[:, i - 1]))
+        V[:, i] = V[:, i - 1] + (dt * (np.dot(A, spikes[:, i - 1]) - (1.0/tau_leak) * V[:, i - 1]))
         spikes[:, i] = activation(V[:, i])
     return times, V, spikes, input_by_type
 

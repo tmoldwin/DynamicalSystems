@@ -2,37 +2,32 @@ import matplotlib.colors as mcolors
 from matplotlib import pyplot as plt
 import numpy as np
 
-def plot_weight_mat(A, cell_counts = None, title='', axis=None):
+def plot_weight_mat(A, cell_bounds=None, title='', axis=None):
     if axis is None:
         fig, ax = plt.subplots()
     else:
         ax = axis
 
-    tick_positions = []
-    tick_labels = []
-    # Calculate tick positions and labels
-    if not cell_counts is None:
-        start_indices = {}
-        current_index = 0
-        for cell_type, count in cell_counts.items():
-            start_indices[cell_type] = current_index
-            tick_positions.append(current_index)
-            tick_labels.append(cell_type)
-            current_index += count
+    bound_positions = [bound[0] for bound in cell_bounds.values()]
+    tick_positions = [0.5*(bound[0] + bound[1]) for bound in cell_bounds.values()]
+    tick_labels = [cell_type for cell_type in cell_bounds.keys()]
 
-        # Adjust the first tick position to be at the half of the first count
-
-        # Set the ticks and labels
-        ax.set_xticks(tick_positions)
-        ax.set_xticklabels(tick_labels, rotation=90)  # Rotate labels if needed
-        ax.set_yticks(tick_positions)
-        ax.set_yticklabels(tick_labels)
+    # Set the ticks and labels for both axes
+    ax.set_xticks(tick_positions)
+    for position in bound_positions:
+        ax.axhline(position, color='black', linewidth=0.1)
+        ax.axvline(position, color='black', linewidth=0.1)
+    ax.set_xticklabels(tick_labels, rotation=90)
+    ax.xaxis.tick_bottom()  # Place x ticks at the bottom
+    ax.set_yticks(tick_positions)
+    ax.set_yticklabels(tick_labels)
 
     # Plot the matrix
-    ax.matshow(A, cmap='coolwarm', norm=mcolors.TwoSlopeNorm(vcenter=0))
+    ax.imshow(A, cmap='coolwarm', norm=mcolors.TwoSlopeNorm(vcenter=0))
     ax.set_title(title)
 
     return ax
+
 
 def plot_dynamical_sim(times, x, title='', axis=None, cell_counts=None, **plot_kwargs):
     if axis is None:
@@ -57,14 +52,16 @@ def plot_dynamical_sim(times, x, title='', axis=None, cell_counts=None, **plot_k
     # Plot each cell's data with the corresponding color
     for cell_type, count in cell_counts.items():
         for i in range(current_index, current_index + count):
-            ax.plot(times, x[i, :], c=type_to_color[cell_type], label=cell_type if i == current_index else "", **plot_kwargs)
+            ax.plot(times, x[i, :], c=type_to_color[cell_type], label=cell_type if i == current_index else "",
+                    **plot_kwargs)
         current_index += count
 
     # Add a legend outside the plot
-    ax.legend(loc='center left', bbox_to_anchor=(-0.2, 0.5), title="Cell Types")
+    ax.legend(loc='center left', bbox_to_anchor=(-0.2, 0.5), title="Cell Types", fontsize='6')
 
     ax.set_title(title)
     return ax
+
 
 def hist_mat(A, title='', axis=None):
     if axis is None:
@@ -74,7 +71,6 @@ def hist_mat(A, title='', axis=None):
 
     ax.hist(A.flatten(), bins=100)
     return ax
-
 
 
 def plot_dynamical_sim_spike(times, x, title='', axis=None, cell_counts=None, **plot_kwargs):
@@ -100,8 +96,9 @@ def plot_dynamical_sim_spike(times, x, title='', axis=None, cell_counts=None, **
     # Plot each cell's data with the corresponding color
     for cell_type, count in cell_counts.items():
         for i in range(current_index, current_index + count):
-            ax.scatter(times, x[i, :], c = type_to_color[cell_type], s = 0.1, label=cell_type if i == current_index else "", **plot_kwargs)
-            #plt.setp(stem_container.markerline, 'color', type_to_color[cell_type])
+            ax.scatter(times, x[i, :], c=type_to_color[cell_type], s=0.1, label=cell_type if i == current_index else "",
+                       **plot_kwargs)
+            # plt.setp(stem_container.markerline, 'color', type_to_color[cell_type])
         current_index += count
 
     # Add a legend outside the plot
@@ -109,6 +106,7 @@ def plot_dynamical_sim_spike(times, x, title='', axis=None, cell_counts=None, **
 
     ax.set_title(title)
     return ax
+
 
 def plot_dynamical_sim_raster(times, x, title='', axis=None, cell_counts=None, **plot_kwargs):
     if axis is None:
@@ -139,6 +137,7 @@ def plot_dynamical_sim_raster(times, x, title='', axis=None, cell_counts=None, *
 
     return ax
 
+
 def scatterplot_eigenvalues(A, ax):
     """
     Scatterplot the eigenvalues of the matrix A on the complex plane.
@@ -155,10 +154,11 @@ def scatterplot_eigenvalues(A, ax):
 
     # Create the scatterplot
     ax.scatter(real_parts, imaginary_parts)
-    ax.axhline(0, color='black', linewidth=0.1, linestyle = '--')
-    ax.axvline(0, color='black', linewidth=0.1, linestyle = '--')
+    ax.axhline(0, color='black', linewidth=0.1, linestyle='--')
+    ax.axvline(0, color='black', linewidth=0.1, linestyle='--')
 
-def show_inputs_by_type(times, input_by_type, indices_to_show, ax = None):
+
+def show_inputs_by_type(times, input_by_type, indices_to_show, ax=None, legend=0):
     if ax is None:
         fig, ax = plt.subplots()
     cell_types = list(input_by_type.keys())
@@ -173,6 +173,19 @@ def show_inputs_by_type(times, input_by_type, indices_to_show, ax = None):
             current = type_input[ind]
             ax.plot(times, current, c=type_to_color[type], label=type)
             sm += current
-    ax.plot(times, sm, c = 'k', label = "sum")
-
+    ax.plot(times, sm, c='k', label="sum")
+    if legend:
+        ax.legend(loc='center left', bbox_to_anchor=(-0.2, 0.5), title="Cell Types")
     return ax
+
+
+def all_inputs_by_type(times, input_by_type, type_bounds, axes=None):
+    cell_types = list(input_by_type.keys())
+    num_types = len(cell_types)
+    if axes is None:
+        fig, axes = plt.subplots(num_types, 1)
+    colors = plt.cm.viridis(np.linspace(0, 1, num_types))
+    for i, type in enumerate(cell_types):
+        lower_bound = type_bounds[type][0]
+        show_inputs_by_type(times, input_by_type, lower_bound, ax=axes[i], legend=i == 0)
+    return axes

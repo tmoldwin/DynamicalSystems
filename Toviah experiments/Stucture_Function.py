@@ -77,29 +77,27 @@ submats_1 = {('L5', 'L4'): {'dist': np.random.exponential, 'params': {'scale' :0
            ('L4','L5'): {'dist': np.random.exponential, 'params': {'scale' :0.1}, 'sign': 1},
            ('Mini', 'L4'): {'dist': np.random.exponential, 'params': {'scale':0.1}, 'sign': -1}}
 
-cell_counts_layered = {'L1': 5, 'L2': 5, 'L2I':20, 'L3': 5, }
+cell_counts_layered = {'L1': 20, 'L2': 40, 'L2I':20, 'L3': 20, }
 submats_layered = {
     ('L1', 'L2'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': 1},
-    ('L2I', 'L2'): {'dist': np.random.exponential, 'params': {'scale': 0.5}, 'sign': -1},
+    ('L2I', 'L2'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': -1},
     ('L2', 'L2I'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': 1},
     ('L2', 'L3'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': 1},
-    ('L3', 'L1'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': 1},
+    #('L3', 'L1'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': 1},
 }
 
-cell_counts_balanced = {'E': 100, 'I': 100}
+cell_counts_balanced = {'E': 100, 'I': 130}
 submats_balanced = {('E', 'I'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': 1},
                     ('I', 'E'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': -1},
                     ('E', 'E'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': 1},
                     ('I', 'I'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': -1}}
 
 
-cell_counts = cell_counts_balanced
+cell_counts = cell_counts_layered
 cell_bounds = hf.generate_cell_bounds(cell_counts)
 print(cell_bounds)
-submats = submats_balanced
-layer_sizes = [10,10,10]
+submats = submats_layered
 T = 25
-N = sum(layer_sizes)
 N = sum(cell_counts.values())
 x0 = np.abs(np.random.uniform(0,1, N))
 
@@ -110,30 +108,29 @@ matrices = [gen_large_matrix(cell_counts, submats)]
 
 
 
-fig, axes = plt.subplots(4, np.max([len(matrices),2]))
-axes = np.atleast_2d(axes)
+fig, axes = plt.subplots(4, len(matrices), figsize = (6,5))
 # Adjusted loop to generate matrices with correct parameters
 for i, A in enumerate(matrices):
-
     # Continue with visualization and simulation as before
 # Setup the figure for plotting
 
     # Visualize the weight matrix
-    pf.plot_weight_mat(A, title=f'experiment', cell_counts=cell_counts, axis=axes[0][i])
+    pf.plot_weight_mat(A, title=f'experiment', cell_bounds = cell_bounds, axis=axes[0])
 
     # Simulate dynamics
-    times, x, spikes, input_by_type = dss.dynamical_simulator(T, x0, A, cell_bounds = cell_bounds, activation = dss.threshold_activation)
+    times, x, spikes, input_by_type = dss.dynamical_simulator(T, x0, A, cell_bounds = cell_bounds, tau_leak= 5, activation = dss.threshold_activation)
 
     # Visualize dynamics
-    pf.plot_dynamical_sim(times, x, axis=axes[2][i], cell_counts=cell_counts)
-    pf.plot_dynamical_sim_raster(times, spikes, axis=axes[3][i], cell_counts=cell_counts)
+    pf.plot_dynamical_sim(times, x, axis=axes[2], cell_counts=cell_counts)
+    pf.plot_dynamical_sim_raster(times, spikes, axis=axes[3], cell_counts=cell_counts)
 
     # Scatterplot eigenvalues
-    pf.scatterplot_eigenvalues(A, ax=axes[1][i])
-    axes[1,1].hist(A.flatten(), bins = 20)
-    axes[2,1].hist(A.T)
-    axes[3,1].hist(np.sum(A, axis = 1), bins = 20, fill = False)
-    pf.show_inputs_by_type(times, input_by_type, 0,  ax = axes[0,1])
+    pf.scatterplot_eigenvalues(A, ax=axes[1])
+    # axes[1,1].hist(A.flatten(), bins = 20)
+    # axes[2,1].hist(A.T)
+    # axes[3,1].hist(np.sum(A, axis = 1), bins = 20, fill = False)
+    plt.tight_layout()
+    pf.all_inputs_by_type(times, input_by_type, cell_bounds)
     print(x)
 
 
