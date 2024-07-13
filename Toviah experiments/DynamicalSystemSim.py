@@ -5,29 +5,35 @@ from scipy.linalg import expm
 from matplotlib.ticker import FuncFormatter
 import plotting_functions as pf
 
+
 def format_tick(value, tick_number):
     if abs(value) >= 1000:
         return f'{int(value):.1e}'
     else:
-        return f'{round(value,2)}'
+        return f'{round(value, 2)}'
+
 
 formatter = FuncFormatter(format_tick)
 
 
-
-
 def BFS(x, A, **kwargs):
     return np.dot(A, x)
-def decaying_cascade(x, A, Tau = 2, **kwargs):
+
+
+def decaying_cascade(x, A, Tau=2, **kwargs):
     return np.dot(A, x) - x / Tau
 
-def cascade(x, A):
-    return np.dot(A,x)
 
-def diffusion(x, A, diffusion_vec = None):
+def cascade(x, A):
+    return np.dot(A, x)
+
+
+def diffusion(x, A, diffusion_vec=None):
     D = np.diag(np.sum(A, axis=1))
     L = A - D
     return np.dot(L, x)
+
+
 def random_walk(x, A, **kwargs):
     # x contains the number of agents on each node
     # Divide each column of A by the sum of the column.
@@ -37,18 +43,23 @@ def random_walk(x, A, **kwargs):
     x_next = np.dot(P, x)
     return x_next
 
-def r_BFS(A,t):
-    return np.linalg.matrix_power(A,t)
+
+def r_BFS(A, t):
+    return np.linalg.matrix_power(A, t)
+
 
 def r_diffusion(A, t, diffusion_vec):
-    return A**t
+    return A ** t
+
 
 def r_random_walk(A, t):
     P = A / A.sum(axis=0)
-    return np.linalg.matrix_power(P,t)
+    return np.linalg.matrix_power(P, t)
+
 
 def r_cascade(A, t):
     return expm(A * t)
+
 
 def r_decaying_cascade(A, t, Tau=2):
     # J = A - np.eye(A.shape[0]) / Tau
@@ -57,29 +68,35 @@ def r_decaying_cascade(A, t, Tau=2):
     B = A - (np.eye(A.shape[0]) / Tau)
     return expm(B * t)
 
+
 def r_diffusion(A, t):
     D = np.diag(np.sum(A, axis=1))
     L = A - D
     return expm(L * t)
 
+
 def linear_activation(x):
     return x
+
 
 def sigmoid_activation(x):
     return 1 / (1 + np.exp(-x))
 
+
 def tanh_activation(x):
     return np.tanh(x)
+
 
 def threshold_activation(x, threshold=0):
     return (x > threshold).astype(int)
 
 
-def dynamical_simulator(T, x0, A, func, dt='step', activation = linear_activation, **kwargs):
+def dynamical_simulator_old(T, x0, A, func, dt='step', activation=linear_activation, cell_inds=None, **kwargs):
     N = len(x0)
+    cell_type_Vs = {cell_type: i for i, cell_type in enumerate(cell_inds.keys())}
     if dt != 'step':
         # Continuous dynamics approximation case (not used here but kept for completeness)
-        times = np.arange(0, T-1 + dt, dt)
+        times = np.arange(0, T - 1 + dt, dt)
         num_steps = len(times)
         V = np.zeros((N, num_steps))
         spikes = np.zeros_like(V)
@@ -99,7 +116,21 @@ def dynamical_simulator(T, x0, A, func, dt='step', activation = linear_activatio
     return times, V, spikes
 
 
-
+def dynamical_simulator(T, x0, A, dt=0.1, leak=1, activation=linear_activation, cell_bounds=None):
+    N = len(x0)
+    times = np.arange(0, T - 1 + dt, dt)
+    num_steps = len(times)
+    V = np.zeros((N, num_steps))
+    spikes = np.zeros_like(V)
+    spikes[:, 0] = activation(V[:, 0])
+    V[:, 0] = x0
+    input_by_type = {cell_type: np.zeros((N, num_steps)) for cell_type, bound in cell_bounds.items()}
+    for i in range(1, num_steps):
+        for cell_type, bound in cell_bounds.items():
+            input_by_type[cell_type][:, i] = np.dot(A[:, bound[0]:bound[1]], spikes[bound[0]:bound[1], i-1])
+        V[:, i] = V[:, i - 1] + (dt * (np.dot(A, spikes[:, i - 1]) - leak * V[:, i - 1]))
+        spikes[:, i] = activation(V[:, i])
+    return times, V, spikes, input_by_type
 
 
 def plot_rs(times, rfuncs, axes=None, title=False):
@@ -116,6 +147,7 @@ def plot_rs(times, rfuncs, axes=None, title=False):
             axes[i].set_title(f'R^{times[i]}')
     return axes
 
+
 def plot_sum_rs(times, rfuncs, A, title=None, axes=None):
     if axes is None:
         fig, axes = plt.subplots(len(times))
@@ -125,27 +157,30 @@ def plot_sum_rs(times, rfuncs, A, title=None, axes=None):
             axes[i].set_title(f'R^{times[i]}')
     return axes
 
-def difs_plot(x, x_alt, rfuncs, times, r_times, ax,  **plot_kwargs):
+
+def difs_plot(x, x_alt, rfuncs, times, r_times, ax, **plot_kwargs):
     x_dif = x_alt - x
     colors = plt.cm.viridis(np.linspace(0, 1, x_dif.shape[0]))  # Assuming x_dif is 2D
-    x_dif_init = x_dif[:,0]
+    x_dif_init = x_dif[:, 0]
     predicted = np.array([np.dot(rfuncs[r_time], x_dif_init) for r_time in r_times]).T
     for i in range(x_dif.shape[0]):
-        x_dif_row = x_dif[i,:]
-        predicted_row = predicted[i,:]
+        x_dif_row = x_dif[i, :]
+        predicted_row = predicted[i, :]
         # Plot x_dif for this row
         ax.plot(times, x_dif_row, color=colors[i], **plot_kwargs)
         # Plot predicted for this row with the same color
         ax.plot(r_times, predicted_row, linestyle='--', color=colors[i], **plot_kwargs)
+
 
 # response_times, x0, A, rfuncs[key]
 def plot_analytical_solution(response_times, x0, rfuncs, axes):
     colors = plt.cm.viridis(np.linspace(0, 1, x0.shape[0]))  # Assuming x_dif is 2D
     prediction = np.zeros((len(x0), len(response_times)))
     for i in range(len(response_times)):
-        prediction[:,i] = np.dot(rfuncs[i], x0)
+        prediction[:, i] = np.dot(rfuncs[i], x0)
     for i in range(len(x0)):
-        axes.plot(response_times, prediction[i,:], linestyle = ':', c = colors[i])
+        axes.plot(response_times, prediction[i, :], linestyle=':', c=colors[i])
+
 
 def plot_eigenvalues(response_matrices, times, ax=None):
     # Initialize a list to store eigenvalues
@@ -162,28 +197,29 @@ def plot_eigenvalues(response_matrices, times, ax=None):
         print(eigenvectors)
 
         eigenvalues_list.append(eigenvalues)
-        eigenvector_list.append(eigenvectors/np.linalg.norm(
+        eigenvector_list.append(eigenvectors / np.linalg.norm(
             eigenvectors, axis=0))  # Normalize eigenvectors to have unit length
         print(eigenvectors)
 
-    eig_fig, eig_ax = plt.subplots(2,len(eigenvector_list))
+    eig_fig, eig_ax = plt.subplots(2, len(eigenvector_list))
     for i in range(len(eigenvector_list)):
-        eig_ax[0,i].imshow(np.real(eigenvector_list[i]))
-        eig_ax[1,i].imshow(np.imag(eigenvector_list[i]))
+        eig_ax[0, i].imshow(np.real(eigenvector_list[i]))
+        eig_ax[1, i].imshow(np.imag(eigenvector_list[i]))
 
     # Plot eigenvalues over time
     for i in range(len(eigenvalues_list[0])):  # Assuming all matrices have the same size
         eigenvalue_real_parts = [eigenvalues[i].real for eigenvalues in eigenvalues_list]
         eigenvalue_imag_parts = [eigenvalues[i].imag for eigenvalues in eigenvalues_list]
-        ax.plot(eigenvalue_real_parts, eigenvalue_imag_parts, label=f'eigenvalue {i+1}')
+        ax.plot(eigenvalue_real_parts, eigenvalue_imag_parts, label=f'eigenvalue {i + 1}')
 
         # Add arrowheads to indicate direction of trajectory over time
         for j in range(len(times) - 1):
             start_x = eigenvalue_real_parts[j]
             start_y = eigenvalue_imag_parts[j]
-            end_x = eigenvalue_real_parts[j+1] - start_x
-            end_y = eigenvalue_imag_parts[j+1] - start_y
+            end_x = eigenvalue_real_parts[j + 1] - start_x
+            end_y = eigenvalue_imag_parts[j + 1] - start_y
             ax.quiver(start_x, start_y, end_x, end_y, angles='xy', scale_units='xy', scale=1, width=0.008)
+
 
 def simulate_all(simulations, T, num_nodes, x0, A, response_times):
     fig, axes = plt.subplots(len(simulations), 3 + len(response_times_to_plot), figsize=(20, 20))
@@ -206,6 +242,7 @@ def simulate_all(simulations, T, num_nodes, x0, A, response_times):
 
     plt.tight_layout()
     plt.show()
+
 
 def create_dale_matrix(size, e_i_balance):
     """
@@ -232,7 +269,6 @@ def create_dale_matrix(size, e_i_balance):
     matrix = np.concatenate((excitatory_columns, inhibitory_columns), axis=0).T
 
     return matrix
-
 
 
 if __name__ == "__main__":
@@ -327,11 +363,12 @@ if __name__ == "__main__":
     weight_matrices = [
         np.abs(np.random.randn(num_nodes, num_nodes)),  # All-positive random matrix
         -np.abs(np.random.randn(num_nodes, num_nodes)),  # All-negative random matrix
-        np.random.randn(num_nodes, num_nodes),  # Balanced matrix        # np.abs(np.random.randn(num_nodes, num_nodes)),  # All-positive random matrix
+        np.random.randn(num_nodes, num_nodes),
+        # Balanced matrix        # np.abs(np.random.randn(num_nodes, num_nodes)),  # All-positive random matrix
         create_dale_matrix(num_nodes, 0.5),
         create_dale_matrix(num_nodes, 0.8),
         create_dale_matrix(num_nodes, 0.2),
-     ]
+    ]
 
     # Consolidate all information into a single dictionary
     simulations = {
@@ -343,34 +380,30 @@ if __name__ == "__main__":
         'diffusion': {'func': diffusion, 'rfunc': r_diffusion, 'kwargs': {}, 'dt': 0.001}
     }
 
-    fig, axes = plt.subplots(len(simulations) + 1, len(weight_matrices), figsize = (20, 22))
+    fig, axes = plt.subplots(len(simulations) + 1, len(weight_matrices), figsize=(20, 22))
     for ax in axes.flat:
         ax.xaxis.set_major_formatter(formatter)
         ax.yaxis.set_major_formatter(formatter)
 
     for j, A in enumerate(weight_matrices):
         pf.plot_weight_mat(A, title=f'Weight Matrix {j + 1}', axis=axes[0][j])
-        #scatterplot_eigenvalues(A, ax=axes[0][2 * j + 1])
+        # scatterplot_eigenvalues(A, ax=axes[0][2 * j + 1])
         for i, (key, sim) in enumerate(simulations.items()):
             colors = plt.cm.viridis(np.linspace(0, 1, len(response_times)))
             times, x = dynamical_simulator(T, x0, A, sim['func'], dt=sim['dt'], **sim['kwargs'])
             rfuncs = [sim['rfunc'](A, t, **sim['kwargs']) for t in response_times]
             pf.plot_dynamical_sim(times, x, title=key, axis=axes[i + 1][j])
-            #plot_analytical_solution(response_times, x0, rfuncs, axes=axes[i + 1][j])
-            #plot_eigenvalues(rfuncs, response_times, ax=axes[i + 1][2 * j + 1])
+            # plot_analytical_solution(response_times, x0, rfuncs, axes=axes[i + 1][j])
+            # plot_eigenvalues(rfuncs, response_times, ax=axes[i + 1][2 * j + 1])
 
     # Assuming 'axes' is a list of Axes objects and 'simulations' is your dictionary of simulations
 
     plt.tight_layout()
-    plt.subplots_adjust(hspace=0.3, left = 0.1, bottom = 0.08)
+    plt.subplots_adjust(hspace=0.3, left=0.1, bottom=0.08)
     for i, (key, sim) in enumerate(simulations.items()):
         # Your existing code...
         # Add a ylabel to the plot
-        axes[i+1][0].set_ylabel(key, rotation=90, verticalalignment='center', labelpad = 20,
-                              fontsize=10)
+        axes[i + 1][0].set_ylabel(key, rotation=90, verticalalignment='center', labelpad=20,
+                                  fontsize=10)
     plt.savefig('test.png')
     plt.show()
-
-
-
-

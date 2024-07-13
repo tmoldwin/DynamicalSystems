@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
 from scipy.linalg import expm
 import plotting_functions as pf
+import helper_functions as hf
 
 #Several functions to create binary matrices of different types. E.g. Scale free, ring lattice, hierachical, etc., modular, etc.
 
@@ -85,7 +86,7 @@ submats_layered = {
     ('L3', 'L1'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': 1},
 }
 
-cell_counts_balanced = {'E': 50, 'I': 70}
+cell_counts_balanced = {'E': 100, 'I': 100}
 submats_balanced = {('E', 'I'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': 1},
                     ('I', 'E'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': -1},
                     ('E', 'E'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': 1},
@@ -93,6 +94,8 @@ submats_balanced = {('E', 'I'): {'dist': np.random.exponential, 'params': {'scal
 
 
 cell_counts = cell_counts_balanced
+cell_bounds = hf.generate_cell_bounds(cell_counts)
+print(cell_bounds)
 submats = submats_balanced
 layer_sizes = [10,10,10]
 T = 25
@@ -119,7 +122,7 @@ for i, A in enumerate(matrices):
     pf.plot_weight_mat(A, title=f'experiment', cell_counts=cell_counts, axis=axes[0][i])
 
     # Simulate dynamics
-    times, x, spikes = dss.dynamical_simulator(T, x0, A, dss.BFS, activation = dss.linear_activation, dt='step')
+    times, x, spikes, input_by_type = dss.dynamical_simulator(T, x0, A, cell_bounds = cell_bounds, activation = dss.threshold_activation)
 
     # Visualize dynamics
     pf.plot_dynamical_sim(times, x, axis=axes[2][i], cell_counts=cell_counts)
@@ -127,6 +130,12 @@ for i, A in enumerate(matrices):
 
     # Scatterplot eigenvalues
     pf.scatterplot_eigenvalues(A, ax=axes[1][i])
+    axes[1,1].hist(A.flatten(), bins = 20)
+    axes[2,1].hist(A.T)
+    axes[3,1].hist(np.sum(A, axis = 1), bins = 20, fill = False)
+    pf.show_inputs_by_type(times, input_by_type, 0,  ax = axes[0,1])
+    print(x)
+
 
 plt.tight_layout()
 plt.show()

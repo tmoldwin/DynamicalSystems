@@ -66,6 +66,17 @@ def plot_dynamical_sim(times, x, title='', axis=None, cell_counts=None, **plot_k
     ax.set_title(title)
     return ax
 
+def hist_mat(A, title='', axis=None):
+    if axis is None:
+        fig, ax = plt.subplots()
+    else:
+        ax = axis
+
+    ax.hist(A.flatten(), bins=100)
+    return ax
+
+
+
 def plot_dynamical_sim_spike(times, x, title='', axis=None, cell_counts=None, **plot_kwargs):
     if axis is None:
         fig, ax = plt.subplots()
@@ -146,3 +157,22 @@ def scatterplot_eigenvalues(A, ax):
     ax.scatter(real_parts, imaginary_parts)
     ax.axhline(0, color='black', linewidth=0.1, linestyle = '--')
     ax.axvline(0, color='black', linewidth=0.1, linestyle = '--')
+
+def show_inputs_by_type(times, input_by_type, indices_to_show, ax = None):
+    if ax is None:
+        fig, ax = plt.subplots()
+    cell_types = list(input_by_type.keys())
+    num_types = len(cell_types)
+    colors = plt.cm.viridis(np.linspace(0, 1, num_types))
+    type_to_color = {cell_type: colors[i] for i, cell_type in enumerate(cell_types)}
+    # Calculate the total number of cells and types for color mapping
+    sm = 0
+    for type in cell_types:
+        type_input = input_by_type[type]
+        for ind in np.atleast_1d(indices_to_show):
+            current = type_input[ind]
+            ax.plot(times, current, c=type_to_color[type], label=type)
+            sm += current
+    ax.plot(times, sm, c = 'k', label = "sum")
+
+    return ax
