@@ -2,6 +2,8 @@ import matplotlib.colors as mcolors
 from matplotlib import pyplot as plt
 import numpy as np
 
+plt.rcParams['legend.fontsize'] = 6  # You can adjust the size as needed
+
 def plot_weight_mat(A, cell_bounds=None, title='', axis=None):
     if axis is None:
         fig, ax = plt.subplots()
@@ -29,7 +31,7 @@ def plot_weight_mat(A, cell_bounds=None, title='', axis=None):
     return ax
 
 
-def plot_dynamical_sim(times, x, title='', axis=None, cell_counts=None, **plot_kwargs):
+def plot_dynamical_sim(times, x, title='', axis=None, cell_bounds=None, **plot_kwargs):
     if axis is None:
         fig, ax = plt.subplots()
     else:
@@ -37,7 +39,7 @@ def plot_dynamical_sim(times, x, title='', axis=None, cell_counts=None, **plot_k
 
     # Calculate the total number of cells and types for color mapping
     total_cells = x.shape[0]
-    cell_types = list(cell_counts.keys())
+    cell_types = list(cell_bounds.keys())
     num_types = len(cell_types)
 
     # Generate a color for each cell type
@@ -47,17 +49,15 @@ def plot_dynamical_sim(times, x, title='', axis=None, cell_counts=None, **plot_k
     type_to_color = {cell_type: colors[i] for i, cell_type in enumerate(cell_types)}
 
     # Initialize a variable to keep track of the current cell's index
-    current_index = 0
 
     # Plot each cell's data with the corresponding color
-    for cell_type, count in cell_counts.items():
-        for i in range(current_index, current_index + count):
-            ax.plot(times, x[i, :], c=type_to_color[cell_type], label=cell_type if i == current_index else "",
+    for cell_type, bound in cell_bounds.items():
+        for i in range(bound[0], bound[1]):
+            ax.plot(times, x[i, :], c=type_to_color[cell_type], label=cell_type if i == bound[0] else "",
                     **plot_kwargs)
-        current_index += count
 
     # Add a legend outside the plot
-    ax.legend(loc='center left', bbox_to_anchor=(-0.2, 0.5), title="Cell Types", fontsize='6')
+    ax.legend(loc='center left', bbox_to_anchor=(-0.3, 0.5))
 
     ax.set_title(title)
     return ax
@@ -102,37 +102,40 @@ def plot_dynamical_sim_spike(times, x, title='', axis=None, cell_counts=None, **
         current_index += count
 
     # Add a legend outside the plot
-    ax.legend(loc='center left', bbox_to_anchor=(-0.2, 0.5), title="Cell Types")
+    ax.legend(loc='center left', bbox_to_anchor=(-0.2, 0.5))
 
     ax.set_title(title)
     return ax
 
 
-def plot_dynamical_sim_raster(times, x, title='', axis=None, cell_counts=None, **plot_kwargs):
+def plot_dynamical_sim_raster(times, x, title='', axis=None, cell_bounds=None, **plot_kwargs):
     if axis is None:
         fig, ax = plt.subplots()
     else:
         ax = axis
 
     total_cells = x.shape[0]
-    cell_types = list(cell_counts.keys())
+    cell_types = list(cell_bounds.keys())
     num_types = len(cell_types)
 
     colors = plt.cm.viridis(np.linspace(0, 1, num_types))
     type_to_color = {cell_type: colors[i] for i, cell_type in enumerate(cell_types)}
 
     current_index = 0
-    for cell_type, count in cell_counts.items():
-        for i in range(current_index, current_index + count):
+    for cell_type, bound in cell_bounds.items():
+        for i in range(bound[0], bound[1]):
             # Find indices where the cell is active
-            active_indices = np.where(x[i, :] > 0.5)[0]
-            # Plot vertical lines for each active index
-            ax.vlines(times[active_indices], i, i + 0.8, color=type_to_color[cell_type], **plot_kwargs)
-        current_index += count
+            active_indices = np.where(x[i, :] > 0)[0]  # Assuming threshold for activity is > 0
+            # Use scatterplot for each active index
+            ax.scatter(times[active_indices], [i + 0.4] * len(active_indices), s = 0.1, color=type_to_color[cell_type],
+                       **plot_kwargs)
+
+    # Set x-axis to cover the full length of times
+    ax.set_xlim(times[0], times[-1])
 
     ax.set_ylim(0, total_cells)
     ax.legend(handles=[plt.Line2D([0], [0], color=type_to_color[cell_type], lw=4) for cell_type in cell_types],
-              labels=cell_types, loc='center left', bbox_to_anchor=(-0.2, 0.5), title="Cell Types")
+              labels=cell_types, loc='center left', bbox_to_anchor=(-0.3, 0.5))
     ax.set_title(title)
 
     return ax
@@ -168,24 +171,28 @@ def show_inputs_by_type(times, input_by_type, indices_to_show, ax=None, legend=0
     # Calculate the total number of cells and types for color mapping
     sm = 0
     for type in cell_types:
-        type_input = input_by_type[type]
+        type_input = np.atleast_1d(input_by_type[type])
         for ind in np.atleast_1d(indices_to_show):
             current = type_input[ind]
             ax.plot(times, current, c=type_to_color[type], label=type)
             sm += current
     ax.plot(times, sm, c='k', label="sum")
     if legend:
-        ax.legend(loc='center left', bbox_to_anchor=(-0.2, 0.5), title="Cell Types")
+        ax.legend(loc='upper left', bbox_to_anchor=(-0.3, 0.5))
     return ax
 
 
-def all_inputs_by_type(times, input_by_type, type_bounds, axes=None):
+def all_inputs_by_type(times, input_by_type, type_bounds, num_examples = 3, axes=None):
     cell_types = list(input_by_type.keys())
     num_types = len(cell_types)
     if axes is None:
-        fig, axes = plt.subplots(num_types, 1)
+        fig, axes = plt.subplots(num_types, num_examples, figsize=(8, 5))
     colors = plt.cm.viridis(np.linspace(0, 1, num_types))
+    axes = np.atleast_2d(axes)
     for i, type in enumerate(cell_types):
-        lower_bound = type_bounds[type][0]
-        show_inputs_by_type(times, input_by_type, lower_bound, ax=axes[i], legend=i == 0)
+        for j in range(num_examples):
+            ax = axes[i][j]
+            lower_bound = type_bounds[type][0]
+            index = lower_bound + j
+            show_inputs_by_type(times, input_by_type, index, ax=ax, legend= i == j == 0)
     return axes
