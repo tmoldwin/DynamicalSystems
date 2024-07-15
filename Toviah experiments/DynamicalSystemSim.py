@@ -47,6 +47,7 @@ class Neural_Network:
         self.V = None
         self.spikes = None
         self.input_by_type = None
+        print(self.v_rest)
 
     def plot(self, **plot_kwargs):
         fig, axes = plt.subplots(4, 1, figsize=(6, 5))
@@ -108,27 +109,28 @@ if __name__ == '__main__':
         ('L2', 'L3'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': 1},
     }
 
-    cell_counts_balanced = {'E': 50, 'I': 50}
-    submats_balanced = {('E', 'I'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': 1},
-                        ('I', 'E'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': -1},
-                        ('E', 'E'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': 1},
-                        ('I', 'I'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': -1}}
+    cell_counts_balanced = {'E': 5, 'I': 5}
+    submats_balanced = {('E', 'I'): {'dist': np.random.exponential, 'params': {'scale': 5}, 'sign': 1},
+                        ('I', 'E'): {'dist': np.random.exponential, 'params': {'scale': 5}, 'sign': -1},
+                        ('E', 'E'): {'dist': np.random.exponential, 'params': {'scale': 5}, 'sign': 1},
+                        ('I', 'I'): {'dist': np.random.exponential, 'params': {'scale': 5}, 'sign': -1}}
 
-    cell_counts_Reem = {'L3':2}
+    cell_counts_Reem = {'L3': 360}
     submats_Reem = {('L3', 'L3'): {'dist': np.random.exponential, 'params': {'scale': 0.5}, 'sign': 1},
                     }
 
 
-    cell_counts = cell_counts_Reem
-    submats = submats_Reem
+    cell_counts = cell_counts_balanced
+    submats = submats_balanced
     cell_bounds = hf.generate_cell_bounds(cell_counts)
     print(cell_bounds)
     v_rest = 0
     v_thresh = 0
     T = 25
     N = sum(cell_counts.values())
-
-    x0 = np.random.uniform(v_thresh - 1, v_thresh + 1, N)
+    active_ratio = 0.2
+    x0 = np.zeros(N)
+    np.put(x0, np.random.choice(N, int(active_ratio * N), replace=False), v_thresh+1)
     print(x0)
     dt = 0.01
     nn = Neural_Network(cell_counts, submats, v_rest=v_rest, tau_leak=1, v_thresh=v_thresh,

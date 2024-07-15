@@ -190,7 +190,7 @@ def all_inputs_by_type(times, input_by_type, type_bounds, num_examples = 3, axes
     colors = plt.cm.viridis(np.linspace(0, 1, num_types))
     axes = np.atleast_2d(axes)
     for i, type in enumerate(cell_types):
-        for j in range(num_examples):
+        for j in range(min(num_examples, len(input_by_type[type]))):
             ax = axes[i][j]
             lower_bound = type_bounds[type][0]
             index = lower_bound + j
