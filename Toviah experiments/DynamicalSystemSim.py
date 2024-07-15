@@ -17,19 +17,19 @@ import helper_functions as hf
 # formatter = FuncFormatter(format_tick)
 #
 
-def sigmoid_activation(x):
-    return 1 / (1 + np.exp(-x))
+def sigmoid_activation(x, threshold):
+    return 1 / (1 + np.exp(-x-threshold))
 
 
-def tanh_activation(x):
-    return np.tanh(x)
+def tanh_activation(x, threshold):
+    return np.tanh(x-threshold)
 
 
 def threshold_activation(x, threshold):
     return (x > threshold).astype(int)
 
 
-def linear_activation(x):
+def linear_activation(x, threshold):
     return x
 
 
@@ -58,8 +58,8 @@ class Neural_Network:
         # Assuming simulate is a method that updates self.times, self.V, self.spikes, and self.input_by_type
 
         # Visualize dynamics
-        pf.plot_dynamical_sim(self.times, self.V, axis=axes[2], cell_bounds=self.cell_bounds)
-        pf.plot_dynamical_sim_raster(self.times, self.spikes, axis=axes[3], cell_bounds=self.cell_bounds)
+        pf.plot_dynamical_sim(self.times, self.V, axis=axes[2], threshold = self.v_thresh, cell_bounds=self.cell_bounds)
+        pf.plot_dynamical_sim_raster(self.times, self.spikes,  axis=axes[3], cell_bounds=self.cell_bounds)
 
         # Scatterplot eigenvalues
         pf.scatterplot_eigenvalues(self.A, ax=axes[1])
@@ -87,7 +87,8 @@ class Neural_Network:
             leak = (1.0 / self.tau_leak) * (V[:, t - 1] - self.v_rest)
             dV = dt * (-leak + current)
             V[:, t] = V[:, t - 1] + dV
-            V[np.where(spikes[:, t-1]), t] = self.v_rest
+            spike_inds = np.where(spikes[:, t-1])
+            #V[spike_inds, t] = self.v_rest
             spikes[:, t] = self.activation(V[:, t], threshold=self.v_thresh)
         self.times = times
         self.V = V
@@ -109,28 +110,37 @@ if __name__ == '__main__':
         ('L2', 'L3'): {'dist': np.random.exponential, 'params': {'scale': 0.1}, 'sign': 1},
     }
 
-    cell_counts_balanced = {'E': 5, 'I': 5}
-    submats_balanced = {('E', 'I'): {'dist': np.random.exponential, 'params': {'scale': 5}, 'sign': 1},
-                        ('I', 'E'): {'dist': np.random.exponential, 'params': {'scale': 5}, 'sign': -1},
-                        ('E', 'E'): {'dist': np.random.exponential, 'params': {'scale': 5}, 'sign': 1},
-                        ('I', 'I'): {'dist': np.random.exponential, 'params': {'scale': 5}, 'sign': -1}}
+    cell_counts_balanced = {'E': 100, 'I': 100}
+    submats_balanced = {('E', 'I'): {'dist': np.random.exponential, 'params': {'scale': 1}, 'sign': 1},
+                        ('I', 'E'): {'dist': np.random.exponential, 'params': {'scale': 1}, 'sign': -1},
+                        ('E', 'E'): {'dist': np.random.exponential, 'params': {'scale': 1}, 'sign': 1},
+                        ('I', 'I'): {'dist': np.random.exponential, 'params': {'scale': 1}, 'sign': -1}}
 
     cell_counts_Reem = {'L3': 360}
     submats_Reem = {('L3', 'L3'): {'dist': np.random.exponential, 'params': {'scale': 0.5}, 'sign': 1},
                     }
 
+    cell_counts_Maor = {'P_E':20, 'P_I':20, 'R_E': 20, 'R_I':20}
 
+    submats_Maor = {
+        ('P_E', 'R_I'): {'dist': np.random.exponential, 'params': {'scale': 5}, 'sign': 1},
+        ('P_E', 'R_E'): {'dist': np.random.exponential, 'params': {'scale': 5}, 'sign': 1},
+        ('P_I', 'R_E'): {'dist': np.random.exponential, 'params': {'scale': 5}, 'sign': -1},
+        ('P_I', 'R_I'): {'dist': np.random.exponential, 'params': {'scale': 5}, 'sign': -1},
+        ('R_E', 'R_I'): {'dist': np.random.exponential, 'params': {'scale': 5}, 'sign': 1},
+        ('R_I', 'R_E'): {'dist': np.random.exponential, 'params': {'scale': 5}, 'sign': -1},
+        ('R_E', 'R_E'): {'dist': np.random.exponential, 'params': {'scale': 5}, 'sign': 1},
+        ('R_I', 'R_I'): {'dist': np.random.exponential, 'params': {'scale': 5}, 'sign': -1},
+    }
     cell_counts = cell_counts_balanced
     submats = submats_balanced
     cell_bounds = hf.generate_cell_bounds(cell_counts)
-    print(cell_bounds)
-    v_rest = 0
-    v_thresh = 0
+    v_rest = -70
+    v_thresh = -65
     T = 25
     N = sum(cell_counts.values())
-    active_ratio = 0.2
-    x0 = np.zeros(N)
-    np.put(x0, np.random.choice(N, int(active_ratio * N), replace=False), v_thresh+1)
+    active_ratio = 0.5
+    x0 = np.random.randn(N) + v_thresh
     print(x0)
     dt = 0.01
     nn = Neural_Network(cell_counts, submats, v_rest=v_rest, tau_leak=1, v_thresh=v_thresh,

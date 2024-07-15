@@ -31,7 +31,7 @@ def plot_weight_mat(A, cell_bounds=None, title='', axis=None):
     return ax
 
 
-def plot_dynamical_sim(times, x, title='', axis=None, cell_bounds=None, **plot_kwargs):
+def plot_dynamical_sim(times, x, threshold = None, title='', axis=None, cell_bounds=None, **plot_kwargs):
     if axis is None:
         fig, ax = plt.subplots()
     else:
@@ -55,6 +55,8 @@ def plot_dynamical_sim(times, x, title='', axis=None, cell_bounds=None, **plot_k
         for i in range(bound[0], bound[1]):
             ax.plot(times, x[i, :], c=type_to_color[cell_type], label=cell_type if i == bound[0] else "",
                     **plot_kwargs)
+    if not threshold is None:
+        ax.axhline(threshold)
 
     # Add a legend outside the plot
     ax.legend(loc='center left', bbox_to_anchor=(-0.3, 0.5))
@@ -176,7 +178,7 @@ def show_inputs_by_type(times, input_by_type, indices_to_show, ax=None, legend=0
             current = type_input[ind]
             ax.plot(times, current, c=type_to_color[type], label=type)
             sm += current
-    ax.plot(times, sm, c='k', label="sum")
+    ax.plot(times, sm, c='k', label="sum", linestyle = 'dotted')
     if legend:
         ax.legend(loc='upper left', bbox_to_anchor=(-0.3, 0.5))
     return ax
